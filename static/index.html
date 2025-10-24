@@ -203,19 +203,109 @@
         .tab-content.active {
             display: block;
         }
+        
+        .auth-container {
+            max-width: 400px;
+            margin: 50px auto;
+        }
+        
+        .auth-toggle {
+            text-align: center;
+            margin-top: 15px;
+        }
+        
+        .auth-toggle a {
+            color: #2563eb;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        
+        .auth-toggle a:hover {
+            text-decoration: underline;
+        }
+        
+        .user-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f0fdf4;
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <!-- Authentication Forms -->
+    <div id="auth-container" class="auth-container">
+        <div class="card">
+            <!-- Login Form -->
+            <div id="login-form" class="auth-form">
+                <h2>Login</h2>
+                <div id="login-message"></div>
+                <form id="login-form-element">
+                    <div class="form-group">
+                        <label for="login-email">Email</label>
+                        <input type="email" id="login-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Password</label>
+                        <input type="password" id="login-password" required>
+                    </div>
+                    <button type="submit">Login</button>
+                </form>
+                <div class="auth-toggle">
+                    <p>Don't have an account? <a onclick="showRegisterForm()">Register here</a></p>
+                </div>
+            </div>
+            
+            <!-- Register Form -->
+            <div id="register-form" class="auth-form hidden">
+                <h2>Register</h2>
+                <div id="register-message"></div>
+                <form id="register-form-element">
+                    <div class="form-group">
+                        <label for="register-email">Email</label>
+                        <input type="email" id="register-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-password">Password</label>
+                        <input type="password" id="register-password" required minlength="8">
+                    </div>
+                    <div class="form-group">
+                        <label for="register-full-name">Full Name (Optional)</label>
+                        <input type="text" id="register-full-name">
+                    </div>
+                    <button type="submit">Register</button>
+                </form>
+                <div class="auth-toggle">
+                    <p>Already have an account? <a onclick="showLoginForm()">Login here</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="main-container" class="container hidden">
         <div class="header">
             <h1>🔍 Content Monitoring System</h1>
             <p>Monitor LinkedIn profiles, company pages, and websites for changes</p>
+        </div>
+        
+        <div id="user-info" class="user-info">
+            <span>Welcome, <span id="user-email"></span>!</span>
+            <button onclick="logout()">Logout</button>
         </div>
         
         <div class="tabs">
             <button class="tab active" onclick="showTab('add-target')">Add Target</button>
             <button class="tab" onclick="showTab('targets')">My Targets</button>
             <button class="tab" onclick="showTab('changes')">Recent Changes</button>
+            <button class="tab" onclick="showTab('settings')">Settings</button>
         </div>
         
         <!-- Add Target Tab -->
@@ -256,10 +346,7 @@
                         </select>
                     </div>
                     
-                    <div class="form-group" style="display: none;">
-                        <label for="user_id">User ID</label>
-                        <input type="text" id="user_id" placeholder="your-user-id" value="default-user">
-                    </div>
+
                     
                     <button type="submit">Add Target</button>
                 </form>
@@ -283,10 +370,166 @@
                 <div id="changes-list" class="loading">Loading changes...</div>
             </div>
         </div>
+        
+        <!-- Settings Tab -->
+        <div id="settings" class="tab-content">
+            <div class="card">
+                <h2>Notification Settings</h2>
+                <div id="settings-message"></div>
+                <form id="settings-form">
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="email_notifications"> 
+                            Email Notifications
+                        </label>
+                        <small>Receive email alerts when changes are detected</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="console_notifications"> 
+                            Console Notifications
+                        </label>
+                        <small>Show notifications in server console (for debugging)</small>
+                    </div>
+                    
+                    <button type="submit">Save Settings</button>
+                </form>
+            </div>
+        </div>
     </div>
 
     <script>
         const API_BASE = 'http://localhost:8000';
+        
+        // Authentication state
+        let authToken = localStorage.getItem('authToken');
+        let currentUser = null;
+        
+        // Authentication functions
+        function showLoginForm() {
+            document.getElementById('login-form').classList.remove('hidden');
+            document.getElementById('register-form').classList.add('hidden');
+        }
+        
+        function showRegisterForm() {
+            document.getElementById('register-form').classList.remove('hidden');
+            document.getElementById('login-form').classList.add('hidden');
+        }
+        
+        async function login(email, password) {
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    authToken = result.access_token;
+                    localStorage.setItem('authToken', authToken);
+                    await loadCurrentUser();
+                    showMainApp();
+                    return { success: true };
+                } else {
+                    return { success: false, error: result.detail || 'Login failed' };
+                }
+            } catch (error) {
+                return { success: false, error: 'Network error: ' + error.message };
+            }
+        }
+        
+        async function register(email, password, fullName) {
+            try {
+                const response = await fetch(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        email, 
+                        password, 
+                        full_name: fullName || null 
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    return { success: true, message: 'Registration successful! Please login.' };
+                } else {
+                    return { success: false, error: result.detail || 'Registration failed' };
+                }
+            } catch (error) {
+                return { success: false, error: 'Network error: ' + error.message };
+            }
+        }
+        
+        async function loadCurrentUser() {
+            if (!authToken) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    currentUser = await response.json();
+                    document.getElementById('user-email').textContent = currentUser.email;
+                } else {
+                    logout();
+                }
+            } catch (error) {
+                console.error('Failed to load user info:', error);
+                logout();
+            }
+        }
+        
+        function logout() {
+            authToken = null;
+            currentUser = null;
+            localStorage.removeItem('authToken');
+            showAuthForms();
+        }
+        
+        function showMainApp() {
+            document.getElementById('auth-container').classList.add('hidden');
+            document.getElementById('main-container').classList.remove('hidden');
+            loadTargets();
+        }
+        
+        function showAuthForms() {
+            document.getElementById('main-container').classList.add('hidden');
+            document.getElementById('auth-container').classList.remove('hidden');
+            showLoginForm();
+        }
+        
+        // Helper function to make authenticated API calls
+        async function authenticatedFetch(url, options = {}) {
+            if (!authToken) {
+                throw new Error('Not authenticated');
+            }
+            
+            const headers = {
+                ...options.headers,
+                'Authorization': `Bearer ${authToken}`
+            };
+            
+            const response = await fetch(url, { ...options, headers });
+            
+            if (response.status === 401) {
+                logout();
+                throw new Error('Authentication expired');
+            }
+            
+            return response;
+        }
         
         // Tab switching
         function showTab(tabName) {
@@ -307,8 +550,75 @@
                 loadTargets();
             } else if (tabName === 'changes') {
                 loadChanges();
+            } else if (tabName === 'settings') {
+                loadSettings();
             }
         }
+        
+        // Form event listeners
+        document.getElementById('login-form-element').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            
+            const result = await login(email, password);
+            
+            if (result.success) {
+                showMessage('login-message', 'Login successful!', 'success');
+            } else {
+                showMessage('login-message', result.error, 'error');
+            }
+        });
+        
+        document.getElementById('register-form-element').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            const fullName = document.getElementById('register-full-name').value;
+            
+            const result = await register(email, password, fullName);
+            
+            if (result.success) {
+                showMessage('register-message', result.message, 'success');
+                setTimeout(() => {
+                    showLoginForm();
+                }, 2000);
+            } else {
+                showMessage('register-message', result.error, 'error');
+            }
+        });
+        
+        // Settings form submission
+        document.getElementById('settings-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                email_notifications: document.getElementById('email_notifications').checked,
+                console_notifications: document.getElementById('console_notifications').checked
+            };
+            
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/user/notification-preferences`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showMessage('settings-message', 'Settings saved successfully!', 'success');
+                } else {
+                    showMessage('settings-message', result.detail || 'Failed to save settings', 'error');
+                }
+            } catch (error) {
+                showMessage('settings-message', 'Error: ' + error.message, 'error');
+            }
+        });
         
         // Add target form submission
         document.getElementById('add-target-form').addEventListener('submit', async (e) => {
@@ -318,12 +628,11 @@
                 url: document.getElementById('url').value,
                 target_type: document.getElementById('target_type').value,
                 name: document.getElementById('name').value || null,
-                frequency_minutes: parseInt(document.getElementById('frequency_minutes').value),
-                user_id: document.getElementById('user_id').value
+                frequency_minutes: parseInt(document.getElementById('frequency_minutes').value)
             };
             
             try {
-                const response = await fetch(`${API_BASE}/targets`, {
+                const response = await authenticatedFetch(`${API_BASE}/targets`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -336,7 +645,6 @@
                 if (response.ok) {
                     showMessage('add-message', 'Target added successfully!', 'success');
                     document.getElementById('add-target-form').reset();
-                    document.getElementById('user_id').value = 'default-user';
                 } else {
                     showMessage('add-message', result.detail || 'Failed to add target', 'error');
                 }
@@ -351,7 +659,7 @@
             container.innerHTML = '<div class="loading">Loading targets...</div>';
             
             try {
-                const response = await fetch(`${API_BASE}/targets`);
+                const response = await authenticatedFetch(`${API_BASE}/targets`);
                 const targets = await response.json();
                 
                 if (targets.length === 0) {
@@ -372,8 +680,7 @@
                         </div>
                         <div class="target-meta">
                             <strong>Type:</strong> ${target.target_type} | 
-                            <strong>Frequency:</strong> ${target.frequency_minutes} minutes |
-                            <strong>User:</strong> ${target.user_id}
+                            <strong>Frequency:</strong> ${target.frequency_minutes} minutes
                             ${target.name ? ` | <strong>Name:</strong> ${target.name}` : ''}
                             ${target.last_checked ? ` | <strong>Last Checked:</strong> ${new Date(target.last_checked).toLocaleString()}` : ''}
                         </div>
@@ -392,7 +699,7 @@
             }
             
             try {
-                const response = await fetch(`${API_BASE}/targets/${encodeURIComponent(url)}`, {
+                const response = await authenticatedFetch(`${API_BASE}/targets/${encodeURIComponent(url)}`, {
                     method: 'DELETE'
                 });
                 
@@ -416,7 +723,7 @@
             container.innerHTML = '<div class="loading">Loading changes...</div>';
             
             try {
-                const response = await fetch(`${API_BASE}/changes`);
+                const response = await authenticatedFetch(`${API_BASE}/changes`);
                 const changes = await response.json();
                 
                 if (changes.length === 0) {
@@ -439,6 +746,23 @@
             }
         }
         
+        // Load settings
+        async function loadSettings() {
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/user/notification-preferences`);
+                const preferences = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('email_notifications').checked = preferences.email_notifications || false;
+                    document.getElementById('console_notifications').checked = preferences.console_notifications || false;
+                } else {
+                    showMessage('settings-message', 'Failed to load settings', 'error');
+                }
+            } catch (error) {
+                showMessage('settings-message', 'Error loading settings: ' + error.message, 'error');
+            }
+        }
+        
         // Show message helper
         function showMessage(containerId, message, type) {
             const container = document.getElementById(containerId);
@@ -448,9 +772,18 @@
             }, 5000);
         }
         
-        // Load initial data
-        document.addEventListener('DOMContentLoaded', () => {
-            loadTargets();
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (authToken) {
+                await loadCurrentUser();
+                if (currentUser) {
+                    showMainApp();
+                } else {
+                    showAuthForms();
+                }
+            } else {
+                showAuthForms();
+            }
         });
     </script>
 </body>

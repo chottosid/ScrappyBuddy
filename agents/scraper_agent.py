@@ -17,8 +17,6 @@ class ScraperAgent:
         """Fetch content from the target URL"""
         try:
             url = str(state.target.url)
-            logger.debug(f"Scraping content from: {url}")
-            
             response = self.session.get(url, timeout=30)
             response.raise_for_status()
             
@@ -31,7 +29,7 @@ class ScraperAgent:
                 content = self._extract_website_content(response.text)
             
             state.current_content = content
-            logger.debug(f"Successfully scraped content from {url} (length: {len(content)})")
+
 
             
         except Exception as e:

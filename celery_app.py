@@ -11,7 +11,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # Create Celery app
@@ -122,7 +122,7 @@ def monitor_target_task(self, target_url: str):
         from models import MonitoringTarget
         from config import Config
 
-        logger.info(f"[TASK] Starting monitoring for: {target_url}")
+
 
         # Connect to database
         db.connect()
@@ -165,7 +165,7 @@ def monitor_target_task(self, target_url: str):
             eta=next_run_time
         )
 
-        logger.info(f"[TASK] Completed monitoring for {target_url}, next check at {next_run_time}")
+
 
         return {
             "status": "success",
@@ -193,7 +193,7 @@ def check_due_targets_task():
         from database import db
         from config import Config
 
-        logger.debug("[SCHEDULER] Checking for due targets...")
+
 
         # Connect to database
         db.connect()
@@ -205,7 +205,7 @@ def check_due_targets_task():
         all_targets = list(targets_collection.find({"active": True}))
         due_targets = []
 
-        logger.debug(f"[SCHEDULER] Found {len(all_targets)} active targets")
+
 
         for target_data in all_targets:
             target_url = target_data.get('url')
@@ -218,7 +218,6 @@ def check_due_targets_task():
             if not last_checked:
                 # Never checked
                 is_due = True
-                logger.debug(f"[SCHEDULER] Target {target_url} never checked - due now")
             else:
                 # Ensure timezone awareness
                 if last_checked.tzinfo is None:
@@ -228,10 +227,6 @@ def check_due_targets_task():
 
                 if current_time >= next_check_time:
                     is_due = True
-                    logger.debug(f"[SCHEDULER] Target {target_url} due for check (last: {last_checked})")
-                else:
-                    time_remaining = (next_check_time - current_time).total_seconds()
-                    logger.debug(f"[SCHEDULER] Target {target_url} not due yet ({time_remaining:.0f}s remaining)")
 
             if is_due:
                 due_targets.append(target_url)
@@ -242,11 +237,11 @@ def check_due_targets_task():
             try:
                 monitor_target_task.delay(target_url)
                 queued_count += 1
-                logger.debug(f"[SCHEDULER] Queued monitoring task for {target_url}")
+
             except Exception as e:
                 logger.error(f"[SCHEDULER] Failed to queue task for {target_url}: {e}")
 
-        logger.info(f"[SCHEDULER] Queued {queued_count} monitoring tasks")
+
 
         return {
             "status": "success",
@@ -266,7 +261,7 @@ def queue_initial_targets():
         from database import db
         from config import Config
 
-        logger.debug("[STARTUP] Queuing initial targets...")
+
 
         # Connect to database
         db.connect()
@@ -284,11 +279,11 @@ def queue_initial_targets():
                     countdown=queued_count * 2  # 0, 2, 4, 6 seconds delay
                 )
                 queued_count += 1
-                logger.debug(f"[STARTUP] Queued initial task for {target_url}")
+
             except Exception as e:
                 logger.error(f"[STARTUP] Failed to queue initial task for {target_url}: {e}")
 
-        logger.info(f"[STARTUP] Queued {queued_count} initial monitoring tasks")
+
 
         return {
             "status": "success",

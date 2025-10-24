@@ -25,18 +25,13 @@ class SchedulerAgent:
             all_targets = list(self.targets_collection.find(query))
             due_targets = []
             
-            logger.debug(f"Checking {len(all_targets)} active targets for monitoring")
-            
             for target_data in all_targets:
                 frequency_minutes = target_data.get('frequency_minutes', 60)
                 last_checked = target_data.get('last_checked')
                 target_url = target_data.get('url', 'unknown')
                 
-                logger.debug(f"Target {target_url}: frequency={frequency_minutes}min, last_checked={last_checked}")
-                
                 # Never checked or due for check
                 if not last_checked:
-                    logger.debug(f"Target {target_url} never checked, adding to due list")
                     due_targets.append(target_data)
                 else:
                     # Ensure last_checked is timezone-aware
@@ -44,14 +39,9 @@ class SchedulerAgent:
                         last_checked = last_checked.replace(tzinfo=timezone.utc)
                     
                     next_check_time = last_checked + timedelta(minutes=frequency_minutes)
-                    logger.debug(f"Target {target_url}: next check at {next_check_time}, current time {current_time}")
                     
                     if current_time >= next_check_time:
-                        logger.debug(f"Target {target_url} is due for monitoring")
                         due_targets.append(target_data)
-                    else:
-                        time_until_due = (next_check_time - current_time).total_seconds()
-                        logger.debug(f"Target {target_url} not due yet, {time_until_due} seconds remaining")
             
             targets = []
             
@@ -64,7 +54,7 @@ class SchedulerAgent:
                 except Exception as e:
                     logger.error(f"Failed to parse target {target_data.get('url')}: {e}")
             
-            logger.debug(f"Found {len(targets)} targets ready for monitoring")
+
             return targets
             
         except Exception as e:
@@ -79,6 +69,6 @@ class SchedulerAgent:
                 {"url": target_url},
                 {"$set": {"last_checked": datetime.now(timezone.utc)}}
             )
-            logger.debug(f"Updated last_checked for {target_url}")
+
         except Exception as e:
             logger.error(f"Failed to update last_checked for {target_url}: {e}")

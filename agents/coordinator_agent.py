@@ -59,7 +59,7 @@ class CoordinatorAgent:
     def _scrape_node(self, state: dict) -> dict:
         """Scraping node - LangGraph compatible"""
         target = state["target"]
-        logger.debug(f"Scraping: {target.url}")
+
         
         try:
             # Create MonitoringState for agent compatibility
@@ -86,11 +86,9 @@ class CoordinatorAgent:
     def _analyze_node(self, state: dict) -> dict:
         """Analysis node - LangGraph compatible"""
         if state.get("error"):
-            logger.debug("Skipping analysis due to previous error")
             return state
         
         target = state["target"]
-        logger.debug(f"Analyzing: {target.url}")
         
         try:
             # Create MonitoringState for agent compatibility
@@ -118,11 +116,9 @@ class CoordinatorAgent:
     def _notify_node(self, state: dict) -> dict:
         """Notification node - LangGraph compatible"""
         if state.get("error"):
-            logger.debug("Skipping notification due to previous error")
             return state
         
         target = state["target"]
-        logger.debug(f"Notifying: {target.url}")
         
         try:
             # Create MonitoringState for agent compatibility
@@ -160,7 +156,7 @@ class CoordinatorAgent:
             # Update last checked timestamp
             self.scheduler.update_last_checked(str(target.url))
             
-            logger.debug(f"Stored results for: {target.url}")
+
             state["step"] = "store_completed"
             
         except Exception as e:
@@ -172,7 +168,7 @@ class CoordinatorAgent:
     
     def monitor_target(self, target: MonitoringTarget, previous_content: str = None) -> MonitoringState:
         """Monitor a single target using LangGraph workflow"""
-        logger.debug(f"Starting LangGraph workflow for: {target.url}")
+
         
         # Create initial state for LangGraph
         initial_state = {
@@ -204,7 +200,7 @@ class CoordinatorAgent:
                 error=result.get("error", "")
             )
             
-            logger.debug(f"LangGraph workflow completed for: {target.url}")
+
             return final_state
             
         except Exception as e:
@@ -218,17 +214,16 @@ class CoordinatorAgent:
     
     def run_monitoring_cycle(self):
         """Run a complete monitoring cycle for all due targets"""
-        logger.debug("Starting monitoring cycle")
+
         
         targets = self.scheduler.get_targets_to_monitor()
         
         if not targets:
-            logger.debug("No targets due for monitoring")
             return
             
         for target in targets:
             try:
-                logger.debug(f"Processing target: {target.url}")
+
                 
                 # Get previous content for comparison
                 previous_content = self._get_previous_content(str(target.url))
@@ -239,31 +234,27 @@ class CoordinatorAgent:
                 # Store current content for next comparison
                 if result.current_content and not result.error:
                     self._store_current_content(str(target.url), result.current_content)
-                    logger.debug(f"Successfully processed target: {target.url}")
                 elif result.error:
                     logger.error(f"Target {target.url} had error: {result.error}")
-                else:
-                    logger.warning(f"Target {target.url} returned no content")
                 
             except Exception as e:
                 logger.error(f"Failed to monitor {target.url}: {e}")
                 import traceback
                 logger.error(f"Traceback: {traceback.format_exc()}")
         
-        logger.debug("Completed monitoring cycle")
+
     
     def _get_previous_content(self, target_url: str) -> str:
         """Get the last stored content for a target"""
         try:
             # Get stored content from targets collection
             targets_collection = db.get_collection(Config.TARGETS_COLLECTION)
-            target = targets_collection.find_one({"url": target_url})
+            # Convert URL to string if it's a Pydantic URL object
+            url_str = str(target_url)
+            target = targets_collection.find_one({"url": url_str})
             
             if target and target.get("last_content"):
-                logger.debug(f"Found previous content for {target_url} (length: {len(target['last_content'])})")
                 return target["last_content"]
-            
-            logger.debug(f"No previous content found for {target_url}")
             return ""
             
         except Exception as e:
@@ -275,10 +266,12 @@ class CoordinatorAgent:
         try:
             # Store content snapshot in targets collection for next comparison
             targets_collection = db.get_collection(Config.TARGETS_COLLECTION)
+            # Convert URL to string if it's a Pydantic URL object
+            url_str = str(target_url)
             targets_collection.update_one(
-                {"url": target_url},
+                {"url": url_str},
                 {"$set": {"last_content": content}}
             )
-            logger.debug(f"Stored content snapshot for {target_url}")
+
         except Exception as e:
             logger.error(f"Failed to store content for {target_url}: {e}")

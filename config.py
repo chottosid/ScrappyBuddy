@@ -8,6 +8,11 @@ class Config:
     MONGODB_URI = os.getenv("MONGODB_URI")
     REDIS_URL = os.getenv("REDIS_URL")
     
+    # JWT settings
+    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
+    JWT_ALGORITHM = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
+    
     # Email settings
     SMTP_HOST = os.getenv("SMTP_HOST")
     SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
