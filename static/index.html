@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Monitoring System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            color: #2563eb;
+            margin-bottom: 10px;
+        }
+        
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        button {
+            background: #2563eb;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        
+        button:hover {
+            background: #1d4ed8;
+        }
+        
+        button.danger {
+            background: #dc2626;
+        }
+        
+        button.danger:hover {
+            background: #b91c1c;
+        }
+        
+        .target-item {
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: #f9fafb;
+        }
+        
+        .target-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .target-url {
+            font-weight: 500;
+            color: #2563eb;
+            word-break: break-all;
+        }
+        
+        .target-meta {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .change-item {
+            border-left: 4px solid #10b981;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: #f0fdf4;
+            border-radius: 0 6px 6px 0;
+        }
+        
+        .change-header {
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .change-time {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+        
+        .change-summary {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #d1fae5;
+        }
+        
+        .status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .status.active {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .status.inactive {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #6b7280;
+        }
+        
+        .error {
+            background: #fef2f2;
+            color: #991b1b;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        
+        .success {
+            background: #f0fdf4;
+            color: #166534;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            background: #e5e7eb;
+            border: none;
+            cursor: pointer;
+            margin-right: 5px;
+            border-radius: 4px 4px 0 0;
+        }
+        
+        .tab.active {
+            background: white;
+            border-bottom: 2px solid #2563eb;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Content Monitoring System</h1>
+            <p>Monitor LinkedIn profiles, company pages, and websites for changes</p>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('add-target')">Add Target</button>
+            <button class="tab" onclick="showTab('targets')">My Targets</button>
+            <button class="tab" onclick="showTab('changes')">Recent Changes</button>
+        </div>
+        
+        <!-- Add Target Tab -->
+        <div id="add-target" class="tab-content active">
+            <div class="card">
+                <h2>Add New Monitoring Target</h2>
+                <div id="add-message"></div>
+                <form id="add-target-form">
+                    <div class="form-group">
+                        <label for="url">URL to Monitor</label>
+                        <input type="url" id="url" required placeholder="https://linkedin.com/in/username">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="target_type">Target Type</label>
+                        <select id="target_type" required>
+                            <option value="">Select type...</option>
+                            <option value="linkedin_profile">LinkedIn Profile</option>
+                            <option value="linkedin_company">LinkedIn Company</option>
+                            <option value="website">Website</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="name">Name (Optional)</label>
+                        <input type="text" id="name" placeholder="Friendly name for this target">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="frequency_minutes">Check Frequency</label>
+                        <select id="frequency_minutes">
+                            <option value="1">Every 1 minute</option>
+                            <option value="2" selected>Every 2 minutes</option>
+                            <option value="5">Every 5 minutes</option>
+                            <option value="10">Every 10 minutes</option>
+                            <option value="30">Every 30 minutes</option>
+                            <option value="60">Every 1 hour</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" style="display: none;">
+                        <label for="user_id">User ID</label>
+                        <input type="text" id="user_id" placeholder="your-user-id" value="default-user">
+                    </div>
+                    
+                    <button type="submit">Add Target</button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Targets Tab -->
+        <div id="targets" class="tab-content">
+            <div class="card">
+                <h2>My Monitoring Targets</h2>
+                <button onclick="loadTargets()">Refresh</button>
+                <div id="targets-list" class="loading">Loading targets...</div>
+            </div>
+        </div>
+        
+        <!-- Changes Tab -->
+        <div id="changes" class="tab-content">
+            <div class="card">
+                <h2>Recent Changes</h2>
+                <button onclick="loadChanges()">Refresh</button>
+                <div id="changes-list" class="loading">Loading changes...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        
+        // Tab switching
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+            
+            // Load data for the tab
+            if (tabName === 'targets') {
+                loadTargets();
+            } else if (tabName === 'changes') {
+                loadChanges();
+            }
+        }
+        
+        // Add target form submission
+        document.getElementById('add-target-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                url: document.getElementById('url').value,
+                target_type: document.getElementById('target_type').value,
+                name: document.getElementById('name').value || null,
+                frequency_minutes: parseInt(document.getElementById('frequency_minutes').value),
+                user_id: document.getElementById('user_id').value
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/targets`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showMessage('add-message', 'Target added successfully!', 'success');
+                    document.getElementById('add-target-form').reset();
+                    document.getElementById('user_id').value = 'default-user';
+                } else {
+                    showMessage('add-message', result.detail || 'Failed to add target', 'error');
+                }
+            } catch (error) {
+                showMessage('add-message', 'Network error: ' + error.message, 'error');
+            }
+        });
+        
+        // Load targets
+        async function loadTargets() {
+            const container = document.getElementById('targets-list');
+            container.innerHTML = '<div class="loading">Loading targets...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/targets`);
+                const targets = await response.json();
+                
+                if (targets.length === 0) {
+                    container.innerHTML = '<p>No targets added yet. Add your first target!</p>';
+                    return;
+                }
+                
+                container.innerHTML = targets.map(target => `
+                    <div class="target-item">
+                        <div class="target-header">
+                            <div class="target-url">${target.url}</div>
+                            <div>
+                                <span class="status ${target.active ? 'active' : 'inactive'}">
+                                    ${target.active ? 'Active' : 'Inactive'}
+                                </span>
+                                <button class="danger" onclick="removeTarget('${target.url}')">Remove</button>
+                            </div>
+                        </div>
+                        <div class="target-meta">
+                            <strong>Type:</strong> ${target.target_type} | 
+                            <strong>Frequency:</strong> ${target.frequency_minutes} minutes |
+                            <strong>User:</strong> ${target.user_id}
+                            ${target.name ? ` | <strong>Name:</strong> ${target.name}` : ''}
+                            ${target.last_checked ? ` | <strong>Last Checked:</strong> ${new Date(target.last_checked).toLocaleString()}` : ''}
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                container.innerHTML = `<div class="error">Failed to load targets: ${error.message}</div>`;
+            }
+        }
+        
+        // Remove target
+        async function removeTarget(url) {
+            if (!confirm('Are you sure you want to remove this target?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/targets/${encodeURIComponent(url)}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    loadTargets(); // Refresh the list
+                } else if (response.status === 404) {
+                    // Target already removed, just refresh the list
+                    loadTargets();
+                } else {
+                    const result = await response.json();
+                    alert('Failed to remove target: ' + (result.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Network error: ' + error.message);
+            }
+        }
+        
+        // Load changes
+        async function loadChanges() {
+            const container = document.getElementById('changes-list');
+            container.innerHTML = '<div class="loading">Loading changes...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/changes`);
+                const changes = await response.json();
+                
+                if (changes.length === 0) {
+                    container.innerHTML = '<p>No changes detected yet. Changes will appear here when your targets are monitored.</p>';
+                    return;
+                }
+                
+                container.innerHTML = changes.map(change => `
+                    <div class="change-item">
+                        <div class="change-header">${change.target_url}</div>
+                        <div class="change-time">
+                            ${new Date(change.detected_at).toLocaleString()} | Type: ${change.change_type}
+                        </div>
+                        <div class="change-summary">${change.summary}</div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                container.innerHTML = `<div class="error">Failed to load changes: ${error.message}</div>`;
+            }
+        }
+        
+        // Show message helper
+        function showMessage(containerId, message, type) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `<div class="${type}">${message}</div>`;
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+        
+        // Load initial data
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTargets();
+        });
+    </script>
+</body>
+</html>
