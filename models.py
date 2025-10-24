@@ -1,8 +1,11 @@
 from pydantic import BaseModel, HttpUrl, Field, EmailStr
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Annotated
 from datetime import datetime
 from enum import Enum
 import bcrypt
+from typing_extensions import TypedDict
+from langgraph.graph.message import add_messages
+from langchain_core.messages import BaseMessage
 
 # Use system time instead of UTC
 def get_current_time():
@@ -96,6 +99,34 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     email: Optional[str] = None
 
+# LangGraph State Management
+class MonitoringWorkflowState(TypedDict):
+    """LangGraph state for monitoring workflow"""
+    # Target information
+    target_url: str
+    target_type: str
+    frequency_minutes: int
+    target_name: Optional[str]
+    
+    # Content tracking
+    current_content: Optional[str]
+    previous_content: Optional[str]
+    
+    # Change detection
+    changes_detected: List[Dict[str, Any]]
+    
+    # Workflow control
+    messages: Annotated[List[BaseMessage], add_messages]
+    step: str
+    error: Optional[str]
+    retry_count: int
+    
+    # Metadata
+    workflow_id: str
+    started_at: str
+    last_updated: str
+
+# Legacy Pydantic model for backward compatibility
 class MonitoringState(BaseModel):
     target: MonitoringTarget
     current_content: Optional[str] = None

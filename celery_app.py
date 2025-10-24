@@ -115,14 +115,13 @@ app.conf.update(
 
 @app.task(bind=True, max_retries=3)
 def monitor_target_task(self, target_url: str):
-    """Celery task to monitor a single target"""
+    """Celery task to monitor a single target using LangGraph workflow"""
     try:
         from database import db
-        from agents.coordinator_agent import CoordinatorAgent
-        from models import MonitoringTarget
+        from workflows.monitoring_workflow import monitoring_workflow
         from config import Config
 
-
+        logger.info(f"[TASK] Starting LangGraph monitoring for {target_url}")
 
         # Connect to database
         db.connect()
@@ -135,44 +134,37 @@ def monitor_target_task(self, target_url: str):
             logger.warning(f"[TASK] Target {target_url} not found or inactive")
             return {"status": "error", "message": f"Target {target_url} not found"}
 
-        # Convert to MonitoringTarget
-        target_data['_id'] = str(target_data['_id'])
-        target = MonitoringTarget(**target_data)
+        # Get previous content for comparison
+        previous_content = target_data.get("last_content", "")
 
-        # Create coordinator and monitor
-        coordinator = CoordinatorAgent()
+        # Prepare target data for workflow
+        workflow_target_data = {
+            "url": target_data["url"],
+            "target_type": target_data["target_type"],
+            "frequency_minutes": target_data.get("frequency_minutes", 60),
+            "name": target_data.get("name")
+        }
 
-        # Get previous content
-        previous_content = coordinator._get_previous_content(target_url)
-
-        # Monitor the target
-        result = coordinator.monitor_target(target, previous_content)
-
-        # Store current content for next comparison
-        if result.current_content and not result.error:
-            coordinator._store_current_content(target_url, result.current_content)
-
-        # Update last_checked timestamp
-        targets_collection.update_one(
-            {"url": target_url},
-            {"$set": {"last_checked": datetime.now(timezone.utc)}}
-        )
+        # Run LangGraph workflow
+        result = monitoring_workflow.run_monitoring_sync(workflow_target_data, previous_content)
 
         # Schedule next monitoring task
-        next_run_time = datetime.now(timezone.utc) + timedelta(minutes=target.frequency_minutes)
+        next_run_time = datetime.now(timezone.utc) + timedelta(minutes=workflow_target_data["frequency_minutes"])
         monitor_target_task.apply_async(
             args=[target_url],
             eta=next_run_time
         )
 
-
+        logger.info(f"[TASK] LangGraph monitoring completed for {target_url}: success={result['success']}")
 
         return {
-            "status": "success",
+            "status": "success" if result["success"] else "error",
             "target": target_url,
+            "workflow_id": result.get("workflow_id"),
             "next_check": next_run_time.isoformat(),
-            "changes_detected": bool(result.changes_detected),
-            "error": result.error
+            "changes_detected": len(result.get("changes_detected", [])),
+            "error": result.get("error"),
+            "step": result.get("step")
         }
 
     except Exception as e:

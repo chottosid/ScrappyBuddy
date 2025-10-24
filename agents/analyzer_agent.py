@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 class AnalyzerAgent:
     def __init__(self):
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.5-flash",
             google_api_key=Config.GEMINI_API_KEY,
             temperature=0.1
         )
